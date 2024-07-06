@@ -21,7 +21,7 @@ function to_std_form(A_leq::Matrix{<:Number}, b_leq::Vector{<:Number},
 
     # For convenience. Relies on closure to ensure it remains up-to-date.
     all_A() = [A.leq, A.geq, A.eq] # Try switching to all_A = [A.leq, A.geq, A.eq] or all_A() = [A_leq, A_geq, A_eq] to see what can go wrong...
-    function map_and_assign_to_all_A(f)
+    function map_to_all_A!(f)
         A.leq, A.geq, A.eq = f.(all_A()); return nothing
     end
 
@@ -96,7 +96,7 @@ function to_std_form(A_leq::Matrix{<:Number}, b_leq::Vector{<:Number},
     # i) we don't mistakenly "attempt to access 0x0 Matrix" potentially when scaling columns by -1, and
     # ii) to avoid "DimensionMismatch: number of columns of each array must match" error when using vcat.
     fix_dim_of_empty(M) = ~isempty(M) ? M : reshape(M, 0, n + length(unconstrained_sign_indices))
-    map_and_assign_to_all_A(fix_dim_of_empty)
+    map_to_all_A!(fix_dim_of_empty)
     
     # replace any negatively constrained variable xⱼ by xⱼ' ≔ -xⱼ, then multiply all of the
     # corresponding coeffecients aᵢⱼ by -1 accordingly to compensate
@@ -117,7 +117,7 @@ function to_std_form(A_leq::Matrix{<:Number}, b_leq::Vector{<:Number},
         end
         return M
     end
-    map_and_assign_to_all_A(diff_of_nonnegative)
+    map_to_all_A!(diff_of_nonnegative)
     
     # creates a block matrix that serves as a row of the end result block matrix
     block_A = [
