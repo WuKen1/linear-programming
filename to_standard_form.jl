@@ -25,13 +25,16 @@ function to_std_form(A_leq::Matrix{<:Number}, b_leq::Vector{<:Number},
         A.leq, A.geq, A.eq = f.(all_A()); return nothing
     end
 
-    @assert any(!isempty, all_A()) # make sure that there are constraints at all
+    @assert any(!isempty, all_A()) "System has no constraints"
     n = all_A() |> filter(!isempty) |> first |> size |> z->z[2] # number of variables
-    [@assert isempty(A) || size(A)[2] == n for A in all_A()]
+    @assert all(A -> isempty(A) || size(A)[2] == n,  all_A()) "all constraint matrices must have same number of columns (i.e. decision variables)"
+    ####[@assert(isempty(A) || size(A)[2] == n) for A in all_A()]
 
     # check that each A has consistent dimensions with its respective b
-    A_b_pairs = ((A.leq,b_leq), (A.geq,b_geq), (A.eq,b_eq))
-    [@assert size(A)[1] == length(b) for (A,b) in A_b_pairs]        
+    A_b_pairs = ((A.leq,b_leq,"<= inequality constraint"), (A.geq,b_geq,">= inequality constraint"), (A.eq,b_eq,"equality constraint"))
+    for (A,b,constraint_type) in A_b_pairs
+        @assert size(A)[1] == length(b) "$constraint_type matrix and vector have inconsistent number of rows/constraints"
+    end
     m_leq = length(b_leq);  m_geq = length(b_geq);  m_eq = length(b_eq);
 
     ### identify variables that explicitly MUST be negative or nonnegative respectively ###
@@ -45,7 +48,8 @@ function to_std_form(A_leq::Matrix{<:Number}, b_leq::Vector{<:Number},
     =# 
 
     function e(n, k) # k-th standard basis vector in ℝ^n
-        @assert 1 ≤ k ≤ n
+        [@assert m > 0 && typeof(m) >: Int "$text_m must be a positive integer" for (m,text_m) in [(n,"n"),(k,"k")]]
+        @assert k ≤ n "cannot have e_$k std basis vector in R^$n since k = $k > $n = n"
         return Int.((1:n) .== k)
     end
     function are_scalar_multiples(v,w)
@@ -54,7 +58,6 @@ function to_std_form(A_leq::Matrix{<:Number}, b_leq::Vector{<:Number},
     end
 
     function 𝝋(i, j, ∧, ∨) # the use of symbols "∧", "∨" are to allow for infix notation
-        @assert 1 ≤ j ≤ n
         # x_k uninvolved in ith [less-than/greater-than-or-equal-to] constraint for k ≠ j
         if i ≤ m_geq && are_scalar_multiples(A.geq[i,1:end], e(n, j))
             if A.geq[i,j] ∧ 0 && b_geq[i] ≥ 0 # ⟹ 𝛅/𝛜 ≥ 0 or -𝞭/𝛜 < 0
@@ -170,8 +173,6 @@ display(q.A)
 #num_of_row_in_block_matrix = m_leq + m_geq + m_eq
 #num_of_col_in_block_matrix = (n + length(unconstrained_sign_indices)) + (m_leq + m_geq)
 #block_A = Matrix{Number}(undef, num_of_row_in_block_matrix, num_of_col_in_block_matrix)
-
-
 
 ### UNTESTED; need to rewrite ###
 #=
